@@ -1,0 +1,133 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Évaluation des clusters</title><style>
+:root{--bg:#0b1020;--fg:#e8ecf8;--mu:#93a0c0;--cd:#151c36;--ac:#38bdf8;--ok:#a3e635;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#f4f6fc;--fg:#12172b;--mu:#55618a;--cd:#e4e9f7;--ac:#0284c7;--ok:#4d7c0f}}
+:root[data-theme=light]{--bg:#f4f6fc;--fg:#12172b;--mu:#55618a;--cd:#e4e9f7;--ac:#0284c7;--ok:#4d7c0f}
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{background:var(--bg);color:var(--fg);font:16px/1.4 Inter,system-ui,sans-serif;overflow:hidden}
+.s{position:absolute;inset:0 0 48px;padding:20px 5vw;display:flex;flex-direction:column;justify-content:center;gap:12px;opacity:0;pointer-events:none;transform:translateX(40px);transition:.5s;overflow:auto}
+.s.on{opacity:1;pointer-events:auto;transform:none}
+h1{font-size:clamp(28px,5vw,54px);margin:0;background:linear-gradient(90deg,#38bdf8,#f472b6);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{margin:0;font-size:clamp(22px,3.2vw,34px)}h2 b{color:var(--ac)}.sub{color:var(--mu);font-size:18px}
+.row{display:flex;gap:24px;flex-wrap:wrap;align-items:center}.row>*{flex:1 1 300px}
+ul{margin:0;padding-left:20px}li{margin:6px 0}
+canvas{width:100%;max-width:560px;background:var(--cd);border-radius:14px}
+.card{background:var(--cd);border-radius:14px;padding:14px 16px;border-left:4px solid var(--ac)}
+.f{font:600 clamp(20px,3vw,32px) ui-monospace,monospace;background:var(--cd);padding:12px 16px;border-radius:12px;text-align:center}
+.r{opacity:0;transform:translateY(14px);transition:.5s;visibility:hidden}.r.on{opacity:1;transform:none;visibility:visible}
+.ans{display:none;color:var(--ok);font-weight:600;margin-left:8px}.ans.on{display:inline}
+button{background:var(--ac);color:#04121f;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;margin:3px}button.g{background:var(--cd);color:var(--fg)}
+table{border-collapse:collapse;width:100%;max-width:720px}td,th{padding:9px 12px;text-align:center;border-bottom:1px solid #8883}td.best{background:#a3e63533;color:var(--ok);font-weight:800}
+.m{display:inline-block;min-width:150px;margin:4px 8px 4px 0}.m small{color:var(--mu)}.m big{display:block;font-size:30px;font-weight:800}.bar{height:6px;background:#8884;border-radius:4px}.bar i{display:block;height:100%;background:var(--ac);border-radius:4px;transition:width .5s}
+.sl{display:flex;gap:8px;align-items:center;margin:4px 0}.sl input{flex:1}
+.cards{display:flex;gap:14px;flex-wrap:wrap}.cards .card{flex:1 1 220px}.up{color:var(--ok)}.dn{color:#f472b6}
+nav{position:fixed;left:0;right:0;bottom:0;height:48px;display:flex;justify-content:center;align-items:center;gap:14px;padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg)}
+#pg{position:fixed;top:0;left:0;height:3px;background:var(--ac);transition:.4s}
+pre{background:#0d1117;color:#e6edf3;border-radius:12px;padding:14px 16px;margin:0;overflow-x:auto;font:clamp(11px,1.5vw,14px)/1.55 ui-monospace,monospace;max-width:100%}pre .c{color:#7ee787}
+.flow{display:flex;flex-direction:column;gap:6px;align-items:center}.flow .card{min-width:260px;text-align:center}
+</style></head><body><div id="pg"></div>
+
+<section class="s"><h1>Comment savoir si nos clusters sont bons ?</h1><div class="sub">Silhouette • Davies-Bouldin • Calinski-Harabasz</div><canvas id="hero" width="560" height="325"></canvas><div class="sub">Veille — Évaluation des clusters · ▶ pour avancer</div></section>
+
+<section class="s"><h2>Le problème du <b>clustering</b></h2><div class="row"><ul><li class="r">Apprentissage <b>non supervisé</b></li><li class="r">Aucun label connu</li><li class="r">Pas de « bonne réponse » disponible</li><li class="r">→ il faut des <b>métriques internes</b></li></ul><div><canvas data-w="seg" width="560" height="325"></canvas><div class="sub">Même points, plusieurs segmentations possibles :</div><span data-k></span></div></div></section>
+
+<section class="s"><h2>Pourquoi <b>évaluer</b> ?</h2><div class="row"><div><b>A</b><canvas data-w="ab" data-t="A" width="560" height="325"></canvas></div><div><b>B</b><canvas data-w="ab" data-t="B" width="560" height="325"></canvas></div></div>
+<div><button onclick="toggleC(this)">Montrer cohésion / séparation</button><span class="sub">Selon vous, quel clustering est meilleur ?</span> <button class="g" onclick="this.nextElementSibling.textContent='Raté ! A mélange les groupes.'">A</button><button class="g" onclick="this.nextElementSibling.textContent='Oui ✔ B : clusters compacts (cohésion) et éloignés (séparation).'">B</button><b class="up"></b></div></section>
+
+<section class="s"><h2>Les <b>3 métriques</b></h2><div class="cards"><div class="card r"><h3>🎯 Silhouette</h3>Cohésion + séparation d'un point<br><b class="up">↑ plus élevé = meilleur</b><br>Plage : −1 → +1</div><div class="card r"><h3>📉 Davies-Bouldin</h3>Similarité entre clusters<br><b class="up">↓ plus faible = meilleur</b><br>Plage : 0 → ∞</div><div class="card r"><h3>📈 Calinski-Harabasz</h3>Dispersion inter / intra<br><b class="up">↑ plus élevé = meilleur</b><br>Plage : 0 → ∞</div></div></section>
+
+<section class="s"><h2><b>Silhouette</b> — un point, deux distances</h2><div class="row"><div><div class="f r">s(i) = (b − a) / max(a, b)</div><ul><li class="r"><b>a(i)</b> : distance moyenne à son propre cluster</li><li class="r"><b>b(i)</b> : distance moyenne au cluster voisin le plus proche</li><li class="r">≈ +1 : très bon · ≈ 0 : chevauchement · &lt; 0 : mal affecté</li></ul><div id="sil1" class="card" style="margin-top:8px">Clique sur « Étape suivante »</div></div><div><canvas data-w="sil1" width="560" height="325"></canvas><button onclick="silStep()">Étape suivante</button><button class="g" onclick="silSt=0;silStep(1)">Reset</button></div></div></section>
+
+<section class="s"><h2><b>Silhouette</b> interactive : K = 2 → 5</h2><div class="row"><div data-w="lab" data-c='{"nb":3,"sl":{"K":[2,5,3,1],"spread":[0.3,2,0.8,0.1]},"m":["sil"],"auto":1}'></div><div><ul><li>K trop petit : clusters fusionnés (b ≈ a)</li><li>K trop grand : un vrai groupe est coupé en deux</li><li>Pic de silhouette = K naturel</li></ul><p class="sub">Quel K choisiriez-vous ? <button class="g" onclick="this.nextElementSibling.classList.add('on')">Réponse</button><span class="ans">K=3 (3 groupes réels) — vérifie en augmentant la dispersion.</span></p></div></div></section>
+
+<section class="s"><h2><b>Davies-Bouldin</b> — clusters trop semblables ?</h2><div class="row"><div><div class="f">DB = moyenne<sub>i</sub> max<sub>j≠i</sub> (S<sub>i</sub>+S<sub>j</sub>) / d(c<sub>i</sub>,c<sub>j</sub>)</div><ul><li><b>S</b> = dispersion interne (cercle pointillé)</li><li><b>d</b> = distance entre centres (flèche)</li><li>Proches → DB <b class="dn">élevé</b> · Séparés → DB <b class="up">faible</b></li></ul></div><div data-w="lab" data-c='{"nb":2,"K":2,"sl":{"sep":[1,9,3,0.5]},"m":["db"],"fix":{"spread":0.8},"circ":1}'></div></div><div class="sub">Glisse « sep » pour éloigner les clusters.</div></section>
+
+<section class="s"><h2><b>Davies-Bouldin</b> : configurations A vs B</h2><div data-w="lab" data-c='{"nb":2,"K":2,"sl":{"sep":[1,9,7,0.5],"spread":[0.3,2,0.4,0.1]},"m":["db"],"circ":1,"pre":{"A (compacts, éloignés)":{"sep":7,"spread":0.4},"B (dispersés, proches)":{"sep":3,"spread":1.4}}}'></div><div class="sub">A → DB faible = meilleur · B → DB élevé = moins bon. Déplace les clusters avec « sep ».</div></section>
+
+<section class="s"><h2><b>Calinski-Harabasz</b> — inter / intra</h2><div class="row"><div><div class="f">CH = (B / (k−1)) / (W / (n−k))</div><ul><li><b>B</b> : dispersion entre clusters</li><li><b>W</b> : dispersion dans les clusters</li><li class="up">Élevé = compacts et bien séparés</li></ul><p class="sub">Éloigne les clusters : CH explose.</p></div><div data-w="lab" data-c='{"nb":3,"K":3,"sl":{"sep":[1,9,2,0.5]},"m":["ch"],"fix":{"spread":0.8},"circ":1,"auto":"sep"}'></div></div></section>
+
+<section class="s"><h2>Comparaison <b>K = 2 → 5</b></h2><table id="t10"><tr><th>K</th><th>Silhouette ↑</th><th>Davies-Bouldin ↓</th><th>Calinski-Harabasz ↑</th></tr><tr class="r on"><td>2</td><td>0.51</td><td>0.82</td><td>245</td></tr><tr class="r"><td>3</td><td>0.67</td><td>0.49</td><td>410</td></tr><tr class="r"><td>4</td><td>0.59</td><td>0.61</td><td>350</td></tr><tr class="r"><td>5</td><td>0.48</td><td>0.78</td><td>290</td></tr></table><div class="sub">⚠ Valeurs pédagogiques, non universelles. Meilleur K surligné automatiquement.</div></section>
+
+<section class="s"><h2>Attention : les métriques peuvent <b>diverger</b></h2><div class="cards"><div class="card r">🎯 Silhouette<h3>K = 3</h3></div><div class="card r">📉 Davies-Bouldin<h3>K = 3</h3></div><div class="card r" style="border-color:#f472b6">📈 Calinski-Harabasz<h3>K = 4</h3></div></div><div class="card r">⚠ CH tend à favoriser plus de clusters. Ne jamais appliquer aveuglément <b>une seule</b> métrique.</div></section>
+
+<section class="s"><h2>Quand utiliser <b>quelle métrique</b> ?</h2><table><tr><th></th><th>Atouts</th><th>Lecture</th></tr><tr class="r"><td>Silhouette</td><td>Intuitive, facile à expliquer, cohésion + séparation</td><td>↑ meilleur</td></tr><tr class="r"><td>Davies-Bouldin</td><td>Compare la similarité entre clusters</td><td>↓ meilleur</td></tr><tr class="r"><td>Calinski-Harabasz</td><td>Rapide et efficace</td><td>↑ meilleur</td></tr></table><div class="card r">💡 En pratique, il est souvent préférable de <b>combiner plusieurs métriques</b>.</div></section>
+
+<section class="s"><h2>Cas pratique : <b>300 clients</b></h2><div class="sub">Âge · revenu · fréquence d'achat · montant dépensé (projection 2D simulée, 4 profils)</div><div data-w="lab" data-c='{"nb":4,"n":75,"sl":{"K":[2,5,4,1],"spread":[0.4,2,0.9,0.1]},"m":["sil","db","ch"],"tbl":1,"fix":{"sep":6}}'></div><div class="sub">Quel nombre de clusters choisiriez-vous ? <button class="g" onclick="this.nextElementSibling.classList.add('on')">Conclusion</button><span class="ans" id="concl"></span></div></section>
+
+<section class="s"><h2>Workflow <b>Machine Learning</b></h2><div class="flow"><div class="card r">📦 Dataset</div><div class="card r">🧹 Préparation (nettoyage, StandardScaler)</div><div class="card r">🔵 K-Means</div><div class="card r">🔁 K = 2, 3, 4, 5…</div><div class="card r">📏 Calcul des métriques</div><div class="card r">⚖ Comparaison + visualisation</div><div class="card r" style="border-color:#a3e635">✅ Choix du meilleur K</div></div></section>
+
+<section class="s"><h2>En code : les <b>3 métriques</b> (scikit-learn)</h2><pre class="r on"><code><span class="c"># 1. Préparer les données (important : mettre à la même échelle)</span>
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.metrics import (silhouette_score,
+    davies_bouldin_score, calinski_harabasz_score)
+
+X = StandardScaler().fit_transform(df)   <span class="c"># df = âge, revenu, fréquence, montant</span>
+
+<span class="c"># 2. Clustering avec un K donné</span>
+labels = KMeans(n_clusters=3, n_init=10, random_state=42).fit_predict(X)
+
+<span class="c"># 3. Les métriques : toutes prennent X et labels (pas de vérité terrain)</span>
+silhouette_score(X, labels)          <span class="c"># -1 → +1 : plus haut = meilleur</span>
+davies_bouldin_score(X, labels)      <span class="c"># 0 → ∞  : plus bas  = meilleur</span>
+calinski_harabasz_score(X, labels)   <span class="c"># 0 → ∞  : plus haut = meilleur</span></code></pre><div class="card r">💡 Aucun label requis : seules les données <b>X</b> et les clusters trouvés <b>labels</b> sont utilisés.</div></section>
+
+<section class="s"><h2>En code : <b>choisir le meilleur K</b></h2><pre class="r on"><code>import pandas as pd
+
+rows = []
+for k in range(2, 6):                      <span class="c"># K = 2, 3, 4, 5</span>
+    labels = KMeans(n_clusters=k, n_init=10, random_state=42).fit_predict(X)
+    rows.append({
+        "K": k,
+        "silhouette": silhouette_score(X, labels),
+        "davies_bouldin": davies_bouldin_score(X, labels),
+        "calinski_harabasz": calinski_harabasz_score(X, labels),
+    })
+
+res = pd.DataFrame(rows).set_index("K")
+print(res.round(2))
+
+<span class="c"># Meilleur K selon chaque métrique</span>
+print("Silhouette  :", res["silhouette"].idxmax())          <span class="c"># max</span>
+print("Davies-B.   :", res["davies_bouldin"].idxmin())      <span class="c"># min</span>
+print("Calinski-H. :", res["calinski_harabasz"].idxmax())   <span class="c"># max</span></code></pre><div class="card r">⚠ Si les K diffèrent : visualise les clusters (PCA/t-SNE) avant de décider.</div></section>
+
+<section class="s"><h1>Un bon clustering = compacts + séparés</h1><div class="cards"><div class="card r">Silhouette<br><b class="up">→ proche de +1</b></div><div class="card r">Davies-Bouldin<br><b class="up">→ plus faible</b></div><div class="card r">Calinski-Harabasz<br><b class="up">→ plus élevé</b></div></div><div class="card r">En clustering, il n'existe pas toujours un K parfait : les métriques sont des <b>outils d'aide à la décision</b>.</div></section>
+
+<section class="s"><h2>Quiz <b>final</b></h2><div class="card">1. Silhouette : 0.2 ou 0.8 ? <button class="g" onclick="this.nextElementSibling.classList.add('on')">Réponse</button><span class="ans">0.8 (plus proche de +1)</span></div><div class="card">2. Davies-Bouldin : 0.4 ou 1.2 ? <button class="g" onclick="this.nextElementSibling.classList.add('on')">Réponse</button><span class="ans">0.4 (plus faible)</span></div><div class="card">3. Calinski-Harabasz : 150 ou 500 ? <button class="g" onclick="this.nextElementSibling.classList.add('on')">Réponse</button><span class="ans">500 (plus élevé)</span></div><div class="card" style="border-color:#f472b6">Bonus : si les 3 métriques divergent ? <button class="g" onclick="this.nextElementSibling.classList.add('on')">Réponse</button><span class="ans">Analyser les données, visualiser les clusters et combiner les métriques.</span></div></section>
+
+<nav><button class="g" onclick="go(-1)">◀</button><span id="ct"></span><button onclick="nxt()">▶</button></nav>
+<script>
+let cur=0;const COL=['#38bdf8','#f472b6','#a3e635','#fbbf24','#a78bfa'],$=(s,e=document)=>[...e.querySelectorAll(s)];
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gen(nb,n,sep,sp,seed=3){const r=rng(seed),P=[],G=[];for(let b=0;b<nb;b++){const a=Math.PI*2*b/nb+(nb==2?0:0.5),R=nb==2?sep/2:sep/1.7;const c=nb==2?[(b?1:-1)*R,0]:[Math.cos(a)*R,Math.sin(a)*R*.8];for(let i=0;i<n;i++){const u=r(),v=r(),m=Math.sqrt(-2*Math.log(u+1e-9)),w=r(),z=r();P.push([c[0]+sp*m*Math.cos(6.283*v),c[1]+sp*Math.sqrt(-2*Math.log(w+1e-9))*Math.cos(6.283*z)]);G.push(b)}}return{P,G}}
+const d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]),mean=(a,f)=>a.reduce((s,x)=>s+f(x),0)/a.length;
+function km(P,K){let best,bi=1e18;for(let s=0;s<4;s++){const r=rng(s+7);let C=[P[Math.floor(r()*P.length)]];while(C.length<K){const w=P.map(p=>Math.min(...C.map(c=>d(p,c)**2))),T=w.reduce((a,b)=>a+b);let t=r()*T,i=0;for(;i<w.length-1&&(t-=w[i])>0;i++);C.push(P[i])}let L;for(let it=0;it<15;it++){L=P.map(p=>C.map(c=>d(p,c)).reduce((m,v,k,a)=>v<a[m]?k:m,0));C=C.map((c,k)=>{const m=P.filter((_,i)=>L[i]==k);return m.length?[mean(m,p=>p[0]),mean(m,p=>p[1])]:c})}const I=P.reduce((s,p,i)=>s+d(p,C[L[i]])**2,0);if(I<bi){bi=I;best={L,C}}}return best}
+function met(P,L,C){const K=C.length,n=P.length,cnt=Array(K).fill(0);L.forEach(l=>cnt[l]++);let sil=0;P.forEach((p,i)=>{const s=Array(K).fill(0);P.forEach((q,j)=>{if(j!=i)s[L[j]]+=d(p,q)});const a=s[L[i]]/Math.max(cnt[L[i]]-1,1);let b=1e9;for(let k=0;k<K;k++)if(k!=L[i]&&cnt[k])b=Math.min(b,s[k]/cnt[k]);sil+=(b-a)/Math.max(a,b)});sil/=n;const S=C.map((c,k)=>{let t=0;P.forEach((p,i)=>{if(L[i]==k)t+=d(p,c)});return t/Math.max(cnt[k],1)});let db=0;for(let i=0;i<K;i++){let m=0;for(let j=0;j<K;j++)if(i!=j)m=Math.max(m,(S[i]+S[j])/d(C[i],C[j]));db+=m}db/=K;const g=[mean(P,p=>p[0]),mean(P,p=>p[1])];let B=0,W=0;C.forEach((c,k)=>B+=cnt[k]*d(c,g)**2);P.forEach((p,i)=>W+=d(p,C[L[i]])**2);return{sil,db,ch:(B/(K-1))/(W/(n-K)),S}}
+function draw(cv,P,L,o={}){const x=cv.getContext('2d'),W=cv.width,H=cv.height,sc=W/16,X=p=>W/2+p[0]*sc,Y=p=>H/2+p[1]*sc;x.clearRect(0,0,W,H);x.font='13px system-ui';x.lineWidth=1.5;
+if(o.C){o.C.forEach((c,k)=>{if(o.circ){x.setLineDash([5,4]);x.strokeStyle=COL[k];x.beginPath();x.arc(X(c),Y(c),o.S[k]*sc,0,7);x.stroke();x.setLineDash([])}});if(o.circ&&o.C.length<=3)for(let i=0;i<o.C.length;i++)for(let j=i+1;j<o.C.length;j++){const a=o.C[i],b=o.C[j];x.strokeStyle='#fbbf24';x.beginPath();x.moveTo(X(a),Y(a));x.lineTo(X(b),Y(b));x.stroke();x.fillStyle='#fbbf24';x.fillText('d='+d(a,b).toFixed(1),(X(a)+X(b))/2+4,(Y(a)+Y(b))/2-6)}}
+(o.lines||[]).forEach(([i,j,c])=>{x.strokeStyle=c;x.globalAlpha=.55;x.beginPath();x.moveTo(X(P[i]),Y(P[i]));x.lineTo(X(P[j]),Y(P[j]));x.stroke();x.globalAlpha=1});
+P.forEach((p,i)=>{x.fillStyle=L?COL[L[i]%5]:'#8892b0';x.globalAlpha=.85;x.beginPath();x.arc(X(p),Y(p),i===o.hi?7:3.5,0,7);x.fill();if(i===o.hi){x.globalAlpha=1;x.strokeStyle='#fff';x.stroke()}});x.globalAlpha=1;
+if(o.C)o.C.forEach(c=>{x.fillStyle='#fff';x.strokeStyle='#000';x.beginPath();x.rect(X(c)-5,Y(c)-5,10,10);x.fill();x.stroke()})}
+const hint={sil:v=>v>.7?'Excellent':v>.5?'Bon':v>.25?'Faible':'Mauvais',db:v=>v<.6?'Excellent':v<1?'Correct':'Élevé (mauvais)',ch:v=>'plus haut = mieux'},nm={sil:'Silhouette',db:'Davies-Bouldin',ch:'Calinski-Harabasz'},nrm={sil:v=>Math.max(0,v),db:v=>1-Math.min(v,2)/2,ch:v=>Math.min(Math.log10(v+1)/4,1)};
+function lab(el){const c=JSON.parse(el.dataset.c),V={},cv=document.createElement('canvas');cv.width=560;cv.height=325;el.append(cv);const ctl=document.createElement('div');el.append(ctl);const out=document.createElement('div');el.append(out);const tb=document.createElement('div');el.append(tb);
+Object.entries(c.sl).forEach(([k,[mn,mx,v,st]])=>{V[k]=v;const r=document.createElement('div');r.className='sl';r.innerHTML=`<span style="width:70px">${k=='K'?'K':k}</span><input type=range min=${mn} max=${mx} step=${st||.1} value=${v}><b>${v}</b>`;const i=r.children[1];i.oninput=()=>{V[k]=+i.value;r.lastChild.textContent=i.value;up()};ctl.append(r);V['_'+k]=i});
+if(c.fix)Object.assign(V,c.fix);if(c.pre)Object.entries(c.pre).forEach(([n,p])=>{const b=document.createElement('button');b.textContent=n;b.className='g';b.onclick=()=>{Object.entries(p).forEach(([k,v])=>{V[k]=v;V['_'+k].value=v;V['_'+k].nextSibling.textContent=v});up()};ctl.append(b)});
+if(c.auto){const b=document.createElement('button');b.textContent='▶ Animer';const key=c.auto==1?'K':c.auto;b.onclick=()=>{const i=V['_'+key],mn=+i.min,mx=+i.max,stp=key=='K'?1:.5;let v=mn;const t=setInterval(()=>{i.value=v;i.oninput();v+=stp;if(v>mx+1e-6)clearInterval(t)},key=='K'?1100:350)};ctl.append(b)}
+function up(){const K=V.K||c.K,{P}=gen(c.nb,c.n||80,V.sep||(c.fix&&c.fix.sep)||6,V.spread||(c.fix&&c.fix.spread)||.8),{L,C}=km(P,K),M=met(P,L,C);draw(cv,P,L,{C,S:M.S,circ:c.circ});out.innerHTML=c.m.map(m=>`<div class="m"><small>${nm[m]}</small><big>${m=='ch'?Math.round(M[m]):M[m].toFixed(2)}</big><div class="bar"><i style="width:${nrm[m](M[m])*100}%"></i></div><small>${hint[m](M[m])}</small></div>`).join('');
+if(c.tbl){let h='<table><tr><th>K</th><th>Silh ↑</th><th>DB ↓</th><th>CH ↑</th></tr>',R=[2,3,4,5].map(k=>{const q=km(P,k);return[k,met(P,q.L,q.C)]});const bs=R.reduce((a,b)=>b[1].sil>a[1].sil?b:a)[0],bd=R.reduce((a,b)=>b[1].db<a[1].db?b:a)[0],bc=R.reduce((a,b)=>b[1].ch>a[1].ch?b:a)[0];R.forEach(([k,m])=>h+=`<tr><td>${k}</td><td class="${k==bs?'best':''}">${m.sil.toFixed(2)}</td><td class="${k==bd?'best':''}">${m.db.toFixed(2)}</td><td class="${k==bc?'best':''}">${Math.round(m.ch)}</td></tr>`);tb.innerHTML=h+'</table>';const e=document.getElementById('concl');if(e)e.textContent=`Silhouette→K=${bs}, DB→K=${bd}, CH→K=${bc}. ${bs==bd&&bd==bc?'Les 3 s’accordent : choisis K='+bs+'.':'Désaccord : visualise et compare avant de choisir.'}`}}up()}
+$('[data-w=lab]').forEach(lab);
+// slide 1 hero
+(()=>{const cv=document.getElementById('hero'),{P,G}=gen(3,50,7,.7,5),r=rng(9),S=P.map(()=>[(r()-.5)*15,(r()-.5)*8]);let t=0;(function f(){if(cur==0){t+=.006;const e=Math.min(1,(t%2.4)/1.6),k=e*e*(3-2*e),Q=P.map((p,i)=>[S[i][0]+(p[0]-S[i][0])*k,S[i][1]+(p[1]-S[i][1])*k]);draw(cv,Q,k>.6?G:null)}requestAnimationFrame(f)})()})();
+// slide 2
+(()=>{const cv=$('[data-w=seg]')[0],{P}=gen(3,60,6,1.1,2);const sp=$('[data-k]')[0];const R=k=>{draw(cv,P,k?km(P,k).L:null)};[0,2,3,4].forEach(k=>{const b=document.createElement('button');b.className='g';b.textContent=k?'K='+k:'Sans clusters';b.onclick=()=>R(k);sp.append(b)});R(0)})();
+// slide 3
+let abOn=0;function abDraw(){const {P}=gen(3,60,6,.8,4);$('[data-w=ab]').forEach(cv=>{if(cv.dataset.t=='A'){const L=P.map(p=>p[1]<-1?0:p[1]<1?1:2),C=[0,1,2].map(k=>{const m=P.filter((_,i)=>L[i]==k);return[mean(m,p=>p[0]),mean(m,p=>p[1])]});draw(cv,P,L,{C,S:C.map((c,k)=>mean(P.filter((_,i)=>L[i]==k),p=>d(p,c))),circ:abOn})}else{const{L,C}=km(P,3),M=met(P,L,C);draw(cv,P,L,{C,S:M.S,circ:abOn})}})}
+function toggleC(){abOn=!abOn;abDraw()}abDraw();
+// slide 5
+let silSt=0;const sd=gen(2,40,6,1,6);function silStep(z){const cv=$('[data-w=sil1]')[0],P=sd.P,L=sd.G,i=0,own=P.map((_,j)=>j).filter(j=>j!=i&&L[j]==L[i]),oth=P.map((_,j)=>j).filter(j=>L[j]!=L[i]);const a=mean(own,j=>d(P[i],P[j])),b=mean(oth,j=>d(P[i],P[j])),s=(b-a)/Math.max(a,b);if(!z)silSt=Math.min(3,silSt+1);const ln=[];if(silSt>=1)own.forEach(j=>ln.push([i,j,COL[0]]));if(silSt>=2)oth.forEach(j=>ln.push([i,j,COL[1]]));draw(cv,P,L,{hi:i,lines:ln});$('#sil1')[0].innerHTML=['Un point i dans son cluster.',`a(i) = ${a.toFixed(1)} (lignes bleues)`,`a = ${a.toFixed(1)} · b(i) = ${b.toFixed(1)} (lignes roses)`,`s = (${b.toFixed(1)} − ${a.toFixed(1)}) / ${Math.max(a,b).toFixed(1)} = <b class="up">${s.toFixed(2)}</b> → bien affecté`][silSt]}silStep(1);
+// t10 best
+(()=>{const t=$('#t10')[0],R=$('tr',t).slice(1);[[1,1],[2,-1],[3,1]].forEach(([c,s])=>{let b=R[0];R.forEach(r=>{if(s*parseFloat(r.children[c].textContent)>s*parseFloat(b.children[c].textContent))b=r});b.children[c].classList.add('best')})})();
+// navigation
+const SL=$('.s');function show(n){cur=Math.max(0,Math.min(SL.length-1,n));SL.forEach((s,i)=>{s.classList.toggle('on',i==cur);s.style.transform=i<cur?'translateX(-40px)':''});$('#ct')[0].textContent=(cur+1)+' / '+SL.length;$('#pg')[0].style.width=((cur+1)/SL.length*100)+'%'}
+function nxt(){const r=$('.r:not(.on)',SL[cur])[0];if(r)r.classList.add('on');else show(cur+1)}function go(n){show(cur+n);$('.r',SL[cur]).forEach(r=>r.classList.add('on'))}
+addEventListener('keydown',e=>{if(e.key=='ArrowRight'||e.key==' ')nxt();if(e.key=='ArrowLeft')go(-1)});show(0);
+</script></body></html>
